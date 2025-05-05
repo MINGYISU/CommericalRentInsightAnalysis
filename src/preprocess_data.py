@@ -1,8 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.impute import SimpleImputer
-import warnings
-warnings.filterwarnings('ignore')
 
 class AdvancedDataProcessor:
     """Enhanced Data Processing Engine"""
@@ -28,6 +25,14 @@ class AdvancedDataProcessor:
             'availability_proportion': {'min': 0, 'max': 1}
         }
 
+    def _merge_datasets(self, dfs: dict[pd.DataFrame]) -> pd.DataFrame:
+        """Merge multiple DataFrames into one"""
+        df = dfs['Leases.csv']
+        df.merge(dfs['Major Market Occupancy Data-revised.csv'], on=['quarter', 'year', 'market'], how='left')
+        df.merge(dfs['Price and Availability Data.csv'], on=['quarter', 'year', 'market'], how='left')
+        df.merge(dfs['Unemployment.csv'], on=['quarter', 'year', 'state'], how='left')
+        return df
+    
     def _drop_high_null_cols(self, df):
         """Delete columns based on predefined missing rate"""
         existing_cols = [c for c in self.columns_to_drop if c in df.columns]
@@ -80,19 +85,19 @@ class AdvancedDataProcessor:
 
     def process(self, df):
         """Complete processing workflow"""
-        # Stage 1: Column filtering
+        # Column filtering
         df = self._drop_high_null_cols(df)
         
-        # Stage 2: Type cleaning
+        # Type cleaning
         df = self._clean_categoricals(df)
         
-        # Stage 3: Numeric processing
+        # Numeric processing
         df = self._validate_numerics(df)
         
-        # Stage 4: Business rules execution
+        # Business rules execution
         df = self._enforce_business_rules(df)
         
-        # Stage 5: Final type conversion
+        # type conversion
         cat_cols = df.select_dtypes(include='object').columns
         df[cat_cols] = df[cat_cols].astype('category')
         
@@ -122,12 +127,12 @@ class AdvancedDataProcessor:
         
         print("\nData Quality Report:")
         print("\n".join(report))
-        
+
         with open('data_quality.log', 'w') as f:
             f.write("\n".join(report))
 
 if __name__ == "__main__":
-    raw_df = pd.read_csv("Leases.csv")
+    raw_dfs = {file: pd.read_csv(f'../data/{file}') for file in ['Leases.csv', 'Major Market Occupancy Data-revised.csv', 'Price and Availability Data.csv', 'Unemployment.csv']}
     processor = AdvancedDataProcessor(null_threshold=0.7)
-    processed_df = processor.process(raw_df)
+    processed_df = processor.process(raw_dfs)
     processed_df.to_csv("processed_data.csv", index=False)
